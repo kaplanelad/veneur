@@ -33,6 +33,12 @@ type UDPMetric struct {
 	HostName   string
 }
 
+func removeTag(s []string, i int) []string {
+	s[i] = s[len(s)-1]
+	// We do not need to put s[i] at the end, as it will be discarded anyway
+	return s[:len(s)-1]
+}
+
 // MetricScope describes where the metric will be emitted.
 type MetricScope int
 
@@ -295,7 +301,7 @@ func ParseMetricSSF(metric *ssf.SSFSample) (UDPMetric, error) {
 
 // ParseMetric converts the incoming packet from Datadog DogStatsD
 // Datagram format in to a Metric. http://docs.datadoghq.com/guides/dogstatsd/#datagram-format
-func ParseMetric(packet []byte, tagsPrefixExcludeByPrefixMetric map[string][]string) (*UDPMetric, error) {
+func ParseMetric(packet []byte, tagsExcludeByPrefixMetric map[string][]string) (*UDPMetric, error) {
 	ret := &UDPMetric{
 		SampleRate: 1.0,
 	}
@@ -364,8 +370,9 @@ func ParseMetric(packet []byte, tagsPrefixExcludeByPrefixMetric map[string][]str
 	//       - foo
 	//
 	// if the metric is test OR test.2xx the the list of tags (foo) will add to excludeTags
+
 	var excludeTags []string
-	for prefixMetric, tags := range tagsPrefixExcludeByPrefixMetric {
+	for prefixMetric, tags := range tagsExcludeByPrefixMetric {
 		if strings.HasPrefix(ret.Name, prefixMetric) {
 			excludeTags = tags
 			break
@@ -405,37 +412,32 @@ func ParseMetric(packet []byte, tagsPrefixExcludeByPrefixMetric map[string][]str
 			// should we be filtering known key tags from here?
 			// in order to prevent extremely high cardinality in the global stats?
 			// see worker.go line 273
-			tagsList := strings.Split(string(pipeSplitter.Chunk()[1:]), ",")
-			sort.Strings(tagsList)
-			tags := make([]string, 0, len(tagsList))
-			for i, tag := range tagsList {
-				exclude := false
+			tags := strings.Split(string(pipeSplitter.Chunk()[1:]), ",")
+			sort.Strings(tags)
+			for i, tag := range tags {
 				// we use this tag as an escape hatch for metrics that always
 				// want to be host-local
 				if strings.HasPrefix(tag, "veneurlocalonly") {
 					// delete the tag from the list
-					tagsList = append(tagsList[:i], tagsList[i+1:]...)
+					tags = append(tags[:i], tags[i+1:]...)
 					ret.Scope = LocalOnly
 					break
 				} else if strings.HasPrefix(tag, "veneurglobalonly") {
 					// delete the tag from the list
-					tagsList = append(tagsList[:i], tags[i+1:]...)
+					tags = append(tags[:i], tags[i+1:]...)
 					ret.Scope = GlobalOnly
 					break
 				}
+			}
 
-				// Go over the excludeTags and check if the prefix tag included in tag.
-				for i := range excludeTags {
-					if strings.HasPrefix(tag, excludeTags[i]) {
-						exclude = true
-						break
+			if len(excludeTags) > 0 {
+				for i, tag := range tags {
+					for _, excludeTag := range excludeTags {
+						if strings.HasPrefix(tag, fmt.Sprintf("%s:", excludeTag)) {
+							tags = removeTag(tags, i)
+						}
 					}
 				}
-
-				if !exclude {
-					tags = append(tags, tag)
-				}
-
 			}
 
 			ret.Tags = tags

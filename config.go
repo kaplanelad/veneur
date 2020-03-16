@@ -99,10 +99,10 @@ type Config struct {
 	SynchronizeWithInterval           bool     `yaml:"synchronize_with_interval"`
 	Tags                              []string `yaml:"tags"`
 	TagsExclude                       []string `yaml:"tags_exclude"`
-	TagsPrefixExcludeByPrefixMetric   []struct {
+	TagsExcludeByPrefixMetric         []struct {
 		MetricPrefix string   `yaml:"metric_prefix"`
 		Tags         []string `yaml:"tags"`
-	} `yaml:"tags_prefix_exclude_by_prefix_metric"`
+	} `yaml:"tags_exclude_by_prefix_metric"`
 	TLSAuthorityCertificate       string   `yaml:"tls_authority_certificate"`
 	TLSCertificate                string   `yaml:"tls_certificate"`
 	TLSKey                        string   `yaml:"tls_key"`

@@ -95,7 +95,7 @@ type Server struct {
 	Tags      []string
 	TagsAsMap map[string]string
 
-	tagsPrefixExcludeByPrefixMetric map[string][]string
+	tagsExcludeByPrefixMetric map[string][]string
 
 	HTTPClient *http.Client
 
@@ -682,12 +682,12 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 	// After all sinks are initialized, set the list of tags to exclude
 	setSinkExcludedTags(conf.TagsExclude, ret.metricSinks, ret.spanSinks)
 
-	tagsPrefixExcludeByPrefixMetric := map[string][]string{}
-	for _, m := range conf.TagsPrefixExcludeByPrefixMetric {
-		tagsPrefixExcludeByPrefixMetric[m.MetricPrefix] = m.Tags
+	tagsExcludeByPrefixMetric := map[string][]string{}
+	for _, m := range conf.TagsExcludeByPrefixMetric {
+		tagsExcludeByPrefixMetric[m.MetricPrefix] = m.Tags
 	}
 
-	ret.tagsPrefixExcludeByPrefixMetric = tagsPrefixExcludeByPrefixMetric
+	ret.tagsExcludeByPrefixMetric = tagsExcludeByPrefixMetric
 
 	var svc s3iface.S3API
 	awsID := conf.AwsAccessKeyID
@@ -977,7 +977,7 @@ func (s *Server) HandleMetricPacket(packet []byte) error {
 		}
 		s.Workers[svcheck.Digest%uint32(len(s.Workers))].PacketChan <- *svcheck
 	} else {
-		metric, err := samplers.ParseMetric(packet, s.tagsPrefixExcludeByPrefixMetric)
+		metric, err := samplers.ParseMetric(packet, s.tagsExcludeByPrefixMetric)
 		if err != nil {
 			log.WithFields(logrus.Fields{
 				logrus.ErrorKey: err,
