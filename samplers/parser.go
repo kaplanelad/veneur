@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/segmentio/fasthash/fnv1a"
+	log "github.com/sirupsen/logrus"
 	"github.com/stripe/veneur/protocol"
 	"github.com/stripe/veneur/protocol/dogstatsd"
 	"github.com/stripe/veneur/samplers/metricpb"
@@ -373,8 +374,7 @@ func ParseMetric(packet []byte, tagsExcludeByPrefixMetric map[string][]string) (
 	var excludeTags []string
 	for prefixMetric, tags := range tagsExcludeByPrefixMetric {
 		if strings.HasPrefix(ret.Name, prefixMetric) {
-			excludeTags = tags
-			break
+			excludeTags = append(excludeTags, tags...)
 		}
 	}
 
@@ -429,17 +429,30 @@ func ParseMetric(packet []byte, tagsExcludeByPrefixMetric map[string][]string) (
 				}
 			}
 
-			if len(excludeTags) > 0 {
-				for i, tag := range tags {
-					for _, excludeTag := range excludeTags {
-						if strings.HasPrefix(tag, fmt.Sprintf("%s:", excludeTag)) {
-							tags = removeTag(tags, i)
-						}
+			lastTags := []string{}
+			for _, tag := range tags {
+				exclude := false
+				for _, excludeTag := range excludeTags {
+					if strings.HasPrefix(tag, fmt.Sprintf("%s:", excludeTag)) {
+						exclude = true
+						break
 					}
+				}
+				if !exclude {
+					lastTags = append(lastTags, tag)
 				}
 			}
 
-			ret.Tags = tags
+			if strings.HasPrefix(ret.Name, "sw.") {
+				log.WithField("excludeTags", excludeTags).Info("excludeTags")
+				log.WithFields(log.Fields{
+					"name":  ret.Name,
+					"value": ret.Value,
+					"tags":  lastTags,
+				}).Info("got sw. metric")
+			}
+
+			ret.Tags = lastTags
 			// we specifically need the sorted version here so that hashing over
 			// tags behaves deterministically
 			ret.JoinedTags = strings.Join(tags, ",")
