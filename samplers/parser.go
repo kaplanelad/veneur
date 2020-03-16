@@ -455,7 +455,7 @@ func ParseMetric(packet []byte, tagsExcludeByPrefixMetric map[string][]string) (
 			ret.Tags = lastTags
 			// we specifically need the sorted version here so that hashing over
 			// tags behaves deterministically
-			ret.JoinedTags = strings.Join(tags, ",")
+			ret.JoinedTags = strings.Join(lastTags, ",")
 			h = fnv1a.AddString32(h, ret.JoinedTags)
 
 		default:
