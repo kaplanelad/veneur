@@ -370,7 +370,6 @@ func ParseMetric(packet []byte, tagsExcludeByPrefixMetric map[string][]string) (
 	//       - foo
 	//
 	// if the metric is test OR test.2xx the the list of tags (foo) will add to excludeTags
-
 	var excludeTags []string
 	for prefixMetric, tags := range tagsExcludeByPrefixMetric {
 		if strings.HasPrefix(ret.Name, prefixMetric) {
