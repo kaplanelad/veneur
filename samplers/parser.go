@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/segmentio/fasthash/fnv1a"
+	log "github.com/sirupsen/logrus"
 	"github.com/stripe/veneur/protocol"
 	"github.com/stripe/veneur/protocol/dogstatsd"
 	"github.com/stripe/veneur/samplers/metricpb"
@@ -31,6 +32,12 @@ type UDPMetric struct {
 	Timestamp  int64
 	Message    string
 	HostName   string
+}
+
+func removeTag(s []string, i int) []string {
+	s[i] = s[len(s)-1]
+	// We do not need to put s[i] at the end, as it will be discarded anyway
+	return s[:len(s)-1]
 }
 
 // MetricScope describes where the metric will be emitted.
@@ -295,7 +302,7 @@ func ParseMetricSSF(metric *ssf.SSFSample) (UDPMetric, error) {
 
 // ParseMetric converts the incoming packet from Datadog DogStatsD
 // Datagram format in to a Metric. http://docs.datadoghq.com/guides/dogstatsd/#datagram-format
-func ParseMetric(packet []byte) (*UDPMetric, error) {
+func ParseMetric(packet []byte, tagsExcludeByPrefixMetric map[string][]string) (*UDPMetric, error) {
 	ret := &UDPMetric{
 		SampleRate: 1.0,
 	}
@@ -356,6 +363,21 @@ func ParseMetric(packet []byte) (*UDPMetric, error) {
 		ret.Value = v
 	}
 
+	// Collect list of includes tags by prefix metric name.
+	// For example: in configuration file:
+	// 	tags_prefix_exclude_by_prefix_metric:
+	//   - metric_prefix: test.2xx
+	//     tags:
+	//       - foo
+	//
+	// if the metric is test OR test.2xx the the list of tags (foo) will add to excludeTags
+	var excludeTags []string
+	for prefixMetric, tags := range tagsExcludeByPrefixMetric {
+		if strings.HasPrefix(ret.Name, prefixMetric) {
+			excludeTags = append(excludeTags, tags...)
+		}
+	}
+
 	// each of these sections can only appear once in the packet
 	foundSampleRate := false
 	for pipeSplitter.Next() {
@@ -406,10 +428,34 @@ func ParseMetric(packet []byte) (*UDPMetric, error) {
 					break
 				}
 			}
-			ret.Tags = tags
+
+			lastTags := []string{}
+			for _, tag := range tags {
+				exclude := false
+				for _, excludeTag := range excludeTags {
+					if strings.HasPrefix(tag, fmt.Sprintf("%s:", excludeTag)) {
+						exclude = true
+						break
+					}
+				}
+				if !exclude {
+					lastTags = append(lastTags, tag)
+				}
+			}
+
+			if strings.HasPrefix(ret.Name, "sw.") {
+				log.WithField("excludeTags", excludeTags).Info("excludeTags")
+				log.WithFields(log.Fields{
+					"name":  ret.Name,
+					"value": ret.Value,
+					"tags":  lastTags,
+				}).Info("got sw. metric")
+			}
+
+			ret.Tags = lastTags
 			// we specifically need the sorted version here so that hashing over
 			// tags behaves deterministically
-			ret.JoinedTags = strings.Join(tags, ",")
+			ret.JoinedTags = strings.Join(lastTags, ",")
 			h = fnv1a.AddString32(h, ret.JoinedTags)
 
 		default:

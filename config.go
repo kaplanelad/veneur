@@ -99,17 +99,21 @@ type Config struct {
 	SynchronizeWithInterval           bool     `yaml:"synchronize_with_interval"`
 	Tags                              []string `yaml:"tags"`
 	TagsExclude                       []string `yaml:"tags_exclude"`
-	TLSAuthorityCertificate           string   `yaml:"tls_authority_certificate"`
-	TLSCertificate                    string   `yaml:"tls_certificate"`
-	TLSKey                            string   `yaml:"tls_key"`
-	TraceLightstepAccessToken         string   `yaml:"trace_lightstep_access_token"`
-	TraceLightstepCollectorHost       string   `yaml:"trace_lightstep_collector_host"`
-	TraceLightstepMaximumSpans        int      `yaml:"trace_lightstep_maximum_spans"`
-	TraceLightstepNumClients          int      `yaml:"trace_lightstep_num_clients"`
-	TraceLightstepReconnectPeriod     string   `yaml:"trace_lightstep_reconnect_period"`
-	TraceMaxLengthBytes               int      `yaml:"trace_max_length_bytes"`
-	VeneurMetricsAdditionalTags       []string `yaml:"veneur_metrics_additional_tags"`
-	VeneurMetricsScopes               struct {
+	TagsExcludeByPrefixMetric         []struct {
+		MetricPrefix string   `yaml:"metric_prefix"`
+		Tags         []string `yaml:"tags"`
+	} `yaml:"tags_exclude_by_prefix_metric"`
+	TLSAuthorityCertificate       string   `yaml:"tls_authority_certificate"`
+	TLSCertificate                string   `yaml:"tls_certificate"`
+	TLSKey                        string   `yaml:"tls_key"`
+	TraceLightstepAccessToken     string   `yaml:"trace_lightstep_access_token"`
+	TraceLightstepCollectorHost   string   `yaml:"trace_lightstep_collector_host"`
+	TraceLightstepMaximumSpans    int      `yaml:"trace_lightstep_maximum_spans"`
+	TraceLightstepNumClients      int      `yaml:"trace_lightstep_num_clients"`
+	TraceLightstepReconnectPeriod string   `yaml:"trace_lightstep_reconnect_period"`
+	TraceMaxLengthBytes           int      `yaml:"trace_max_length_bytes"`
+	VeneurMetricsAdditionalTags   []string `yaml:"veneur_metrics_additional_tags"`
+	VeneurMetricsScopes           struct {
 		Counter   string `yaml:"counter"`
 		Gauge     string `yaml:"gauge"`
 		Histogram string `yaml:"histogram"`
